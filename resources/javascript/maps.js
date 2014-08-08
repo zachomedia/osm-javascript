@@ -22,130 +22,152 @@ THE SOFTWARE.
 
 var $ = jQuery;
 
-var Street = function() {
-   return {
-      name: undefined,
-      type: undefined,
-      lanes: 0,
-      oneway: false,
-      nodes: new Array()
-   };
-};
-
-var Node = function() {
-   return {
-      latitude: 0,
-      longitude: 0
-   };
-};
-
 var Map = function(div) {
    this.$div = $(div);
    
-   this.$data = null;
+   this.scale = 500;
+   
+   this.data = null;
    this.streets = new Array();
    
    // Add canvas
-   this.$canvas = $("<canvas id='map-canvas' width='" + this.$div.width() + "px' height='" + this.$div.height() + "px'></canvas>");
+   this.$canvas = $("<canvas id='map-canvas'></canvas>");
+   this.$canvas[0].width = this.$div.width();
+   this.$canvas[0].height = this.$div.height();
+      
    this.$div.append(this.$canvas);
+   
+   // Register events
+   var _this = this;
+   $(window).on('resize', function() {
+      clearTimeout(_this.resizeTimeout);
+      _this.resizeTimeout = setTimeout(function() {
+         _this.draw();
+      }, 500);
+   });
+   
+   this.$canvas.on('mousewheel', function(event) {
+      _this.scale -= event.originalEvent.deltaY / 2;
+      _this.draw();
+   });
+   
+   this.$canvas.on('mousedown', function(event) {
+      _this.last_position = {
+         x: event.clientX,
+         y: event.clientY
+      };
+      
+      $(this).bind('mousemove', function(event) {
+         var delta = {
+            x: _this.last_position.x - event.clientX,
+            y: _this.last_position.y - event.clientY
+         };
+         
+         _this.data.area.minlat -= delta.y / (10 * _this.scale);
+         _this.data.area.maxlat -= delta.y / (10 * _this.scale);
+         
+         _this.data.area.minlon += delta.x / (10 * _this.scale);
+         _this.data.area.maxlon += delta.x / (10 * _this.scale);
+         
+         _this.last_position = {
+            x: event.clientX,
+            y: event.clientY
+         };
+         
+         _this.draw();
+      });
+   });
+   
+   this.$canvas.on('mouseup', function(event) {
+      $(this).unbind('mousemove');
+   })
    
    return this;
 };
 
 Map.prototype.load = function(osm) {
    var _this = this;
-   $.get(osm, function(data) {
-      _this.$data = $(data);
-      
-      _this.streets = Array();
-      _this.processData();
-      
-      var $bounds = _this.$data.find('bounds');
-      _this.draw(parseFloat($bounds.attr('minlon')), parseFloat($bounds.attr('minlat')), parseFloat($bounds.attr('maxlon')), parseFloat($bounds.attr('maxlat')));
+   $.getJSON(osm, function(data) {
+      _this.data = data;
+      _this.draw();
       
       $(_this).trigger('data_updated');
    });
 };
 
-Map.prototype.processData = function() {
+Map.prototype.draw = function() {
    var _this = this;
-   
-   // Current Implementation: Process by "way"
-   this.$data.find("way").each(function(indx, way) {
-      var $way = $(way);
-      
-      var street = new Street();
-      
-      // Street details
-      street.name = $way.find('tag[k=name]').attr('v');
-      street.type = $way.find('tag[k=highway]').attr('v');
-      street.lanes = $way.find('tag[k=lanes]').attr('v');
-      street.oneway = ($way.find('tag[k=oneway]').attr('v') === 'yes');
-      
-      // Street "nodes"
-      $way.find('nd').each(function(nindx, node) {
-         var $node = $(node);
-         var streetNode = new Node();
-         
-         var $streetNode = _this.$data.find('node[id=' + $(node).attr('ref') + ']');
-         streetNode.latitude = parseFloat($streetNode.attr('lat'));
-         streetNode.longitude = parseFloat($streetNode.attr('lon'));
-         
-         street.nodes.push(streetNode);
-      });
-      
-      _this.streets.push(street);
-   });
-};
+   var display = ['residential', 'tertiary', 'secondary', 'motorway', 'motorway_link', 'service'];
 
-Map.prototype.draw = function(left, top, right, bottom) {
    var ctx = this.$canvas[0].getContext('2d');
    
-   ctx.fillStyle = "#aa0000";
+   this.$canvas[0].width = this.$div.width();
+   this.$canvas[0].height = this.$div.height();
+   ctx.width = this.$div.width();
+   ctx.height = this.$div.height();
    
-   var scale = 700;
-   var xmult = scale / (right - left);
-   var ymult = scale / (bottom - top);
+   var xmult = this.scale / (this.data.area.maxlon - this.data.area.minlon);
+   var ymult = this.scale / (this.data.area.maxlat - this.data.area.minlat);
    
-   $.each(this.streets, function(indx, street) {
-      if (street.type === undefined) { return; }
+   $.each(this.data.ways, function(indx, way) {   
+      if (way.highway === undefined) return;
+      if ($.inArray(way.highway, display) === -1) return;
       
       ctx.beginPath();
-      
-      $.each(street.nodes, function(nindx, node) {
-         var x = (node.longitude - left) * xmult;
-         var y = (bottom - node.latitude) * ymult;
+         
+      $.each(way.nodes, function(nindx, node) {
+         var x = (node.lon - _this.data.area.minlon) * xmult;
+         var y = (_this.data.area.maxlat - node.lat) * ymult;
          
          if (nindx === 0) {
             ctx.moveTo(x, y);
          } else {
             ctx.lineTo(x, y);
          }
-         
-         console.log(x + ", " + y);
       });
       
-      switch (street.type) {
-      case 'residential':
-         ctx.lineWidth = 2;
-         ctx.strokeStyle = '#aaa';
-         break;
-         
-      case 'tertiary':
-         ctx.lineWidth = 3;
-         ctx.strokeStyle = '#aaa';
-         break;
-         
-      case 'secondary':
-         ctx.lineWidth = 4;
-         ctx.strokeStyle = '#aaa';
-         break;
-         
-      default:
-         ctx.lineWidth = 1;
-         ctx.strokeStyle = '#ddd'
+      ctx.lineWidth = 1;
+      var primaryColour = '#ddd';
+      var secondaryColour = 'transparent';
+      
+      switch(way.highway) {
+         case 'residential':
+            ctx.lineWidth = 2;
+            primaryColour = '#eee';
+            secondaryColour = '#ccc';
+            
+            break;
+      
+         case 'tertiary':
+            ctx.lineWidth = 3;
+            primaryColour = '#77d3f6';
+            secondaryColour = '#085977';
+            
+            break;
+      
+         case 'secondary':
+            ctx.lineWidth = 4;
+            primaryColour = '#56a0c1';
+            secondaryColour = '#265469';
+                        
+            break;
+      
+         case 'motorway':
+         case 'motorway_link':
+            ctx.lineWidth = 5;
+            primaryColour = '#029887';
+            secondaryColour = '#01554b';
+            
+            break;
       }
-
+      
+      ctx.lineWidth += 2;
+      ctx.strokeStyle = secondaryColour;
       ctx.stroke();
+      
+      ctx.lineWidth -= 2;
+      ctx.strokeStyle = primaryColour;
+      ctx.stroke();
+      
    });
 }
