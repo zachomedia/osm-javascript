@@ -97,7 +97,6 @@ Map.prototype.load = function(osm) {
 
 Map.prototype.draw = function() {
    var _this = this;
-   var display = ['residential', 'tertiary', 'secondary', 'motorway', 'motorway_link', 'service'];
 
    var ctx = this.$canvas[0].getContext('2d');
    
@@ -111,7 +110,6 @@ Map.prototype.draw = function() {
    
    $.each(this.data.ways, function(indx, way) {   
       if (way.highway === undefined) return;
-      if ($.inArray(way.highway, display) === -1) return;
             
       ctx.beginPath();
       
@@ -138,6 +136,8 @@ Map.prototype.draw = function() {
       
       switch(way.highway) {
          case 'residential':
+         case 'unclassified':
+         case 'road':
             ctx.lineWidth = 2;
             primaryColour = '#eee';
             secondaryColour = '#ccc';
@@ -145,6 +145,7 @@ Map.prototype.draw = function() {
             break;
       
          case 'tertiary':
+         case 'tertiary_link':
             ctx.lineWidth = 3;
             primaryColour = '#77d3f6';
             secondaryColour = '#085977';
@@ -152,9 +153,20 @@ Map.prototype.draw = function() {
             break;
       
          case 'secondary':
+         case 'secondary_link':
+         case 'trunk':
+         case 'trunk_link':
             ctx.lineWidth = 4;
             primaryColour = '#56a0c1';
             secondaryColour = '#265469';
+                        
+            break;
+            
+         case 'primary':
+         case 'primary_link':
+            ctx.lineWidth = 4;
+            primaryColour = '#02baa5';
+            secondaryColour = '#01665a';
                         
             break;
       
