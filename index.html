@@ -56,16 +56,7 @@ THE SOFTWARE.
       <script src="resources/javascript/maps.js"></script>
       <script>
          var map = new Map(document.getElementById("map-wrapper"));
-         map.load("maps.php");
-         
-         $(map).on('data_updated', function() {
-            console.log(map);
-            //console.log(map.streets);
-            //jQuery.each(map.streets, function(indx, street) {
-            //   console.log(street.name);
-            //   console.log(street.oneway);
-            //});
-         });
+         map.load("london.json");
       </script>
    </body>
 </html>

@@ -22,22 +22,29 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
    
+ini_set('memory_limit', '1024M');
+   
 // Configure response
 header('Content-Type: application/json');
 $data = [];
 
 // Load map data
 // TODO: respond with only components with x-metres from requested centre point
-$map_data = simplexml_load_file("summerside.osm");
+$map_data = simplexml_load_file("london.osm");
 
 //die(print_r($map_data));
 
 // Area of information
 $data['area'] = [];
-$data['area']['minlat'] = (double)$map_data->bounds['minlat'];
+/*$data['area']['minlat'] = (double)$map_data->bounds['minlat'];
 $data['area']['minlon'] = (double)$map_data->bounds['minlon'];
 $data['area']['maxlat'] = (double)$map_data->bounds['maxlat'];
-$data['area']['maxlon'] = (double)$map_data->bounds['maxlon'];
+$data['area']['maxlon'] = (double)$map_data->bounds['maxlon'];*/
+
+$data['area']['minlat'] = 42.8742;
+$data['area']['minlon'] = -81.3586;
+$data['area']['maxlat'] = 43.0957;
+$data['area']['maxlon'] = -81.1213;
 
 // Return the ways
 $nodes = [];
@@ -76,4 +83,5 @@ foreach ($map_data->way as $xway)
 }// End of foreach
 
 // Output response
-echo json_encode($data);
+//echo json_encode($data);
+file_put_contents("london.json", json_encode($data));

@@ -25,7 +25,7 @@ var $ = jQuery;
 var Map = function(div) {
    this.$div = $(div);
    
-   this.scale = 500;
+   this.scale = 1000;
    
    this.data = null;
    this.streets = new Array();
@@ -47,7 +47,7 @@ var Map = function(div) {
    });
    
    this.$canvas.on('mousewheel', function(event) {
-      _this.scale -= event.originalEvent.deltaY / 2;
+      _this.scale = Math.max(100, _this.scale - event.originalEvent.deltaY / 2);
       _this.draw();
    });
    
@@ -112,19 +112,25 @@ Map.prototype.draw = function() {
    $.each(this.data.ways, function(indx, way) {   
       if (way.highway === undefined) return;
       if ($.inArray(way.highway, display) === -1) return;
-      
+            
       ctx.beginPath();
-         
+      
+      var hasInRange = false;
       $.each(way.nodes, function(nindx, node) {
          var x = (node.lon - _this.data.area.minlon) * xmult;
          var y = (_this.data.area.maxlat - node.lat) * ymult;
-         
+                          
          if (nindx === 0) {
             ctx.moveTo(x, y);
          } else {
             ctx.lineTo(x, y);
          }
+                  
+         if (node.lon > Math.min(_this.data.area.minlon, _this.data.area.maxlon) && node.lon < Math.max(_this.data.area.minlon, _this.data.area.maxlon)) { hasInRange = true };
+         if (node.lat > Math.min(_this.data.area.minlat, _this.data.area.maxlat) && node.lat < Math.max(_this.data.area.minlat, _this.data.area.maxlat)) { hasInRange = true };
       });
+      
+      if (!hasInRange) { return; };
       
       ctx.lineWidth = 1;
       var primaryColour = '#ddd';
@@ -169,5 +175,5 @@ Map.prototype.draw = function() {
       ctx.strokeStyle = primaryColour;
       ctx.stroke();
       
-   });
+   });   
 }
